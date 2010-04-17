@@ -8,138 +8,162 @@
 // http://daniel-spilker.com/
 //
 
-#include <stdint.h>
-#include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/setbaud.h>
+#include <avr/io.h>
+#include <util/delay.h>
 
-#define PIN_S88_LOAD                   PB4
-#define PIN_S88_DATA_IN                PB5
-#define PIN_S88_DATA_OUT               PB6
-#define PIN_S88_CLOCK                  PB7
-#define PIN_FEEDBACK0                  PB0
-#define PIN_FEEDBACK1                  PB1
-#define PIN_FEEDBACK2                  PB2
-#define PIN_FEEDBACK3                  PB3
-#define PIN_FEEDBACK4                  PD2
-#define PIN_FEEDBACK5                  PD3
-#define PIN_FEEDBACK6                  PD4
-#define PIN_FEEDBACK7                  PD5
+#define PIN_LED       PD5
+#define PIN_RFM12_SEL PB4
+#define PIN_RFM12_SDI PB5
+#define PIN_RFM12_SDO PB6
+#define PIN_RFM12_SCK PB7
+#define PIN_RFM12_IRQ PD2
 
-#define S88_LOAD                       bit_is_set(PINB, PIN_S88_LOAD)
+#define LED_ON()  PORTD |=  _BV(PIN_LED)
+#define LED_OFF() PORTD &= ~_BV(PIN_LED)
 
-#define BUFFER_SIZE                    24
+#define SEL_OUTPUT()  DDRB   |=  _BV(PIN_RFM12_SEL)
+#define SEL_HI()      PORTB  |=  _BV(PIN_RFM12_SEL)
+#define SEL_LOW()     PORTB  &= ~_BV(PIN_RFM12_SEL)
+#define SDI_OUTPUT()  DDRB   |=  _BV(PIN_RFM12_SDI)
+#define SDI_HI()      PORTB  |=  _BV(PIN_RFM12_SDI)
+#define SDI_LOW()     PORTB  &= ~_BV(PIN_RFM12_SDI)
+#define SCK_OUTPUT()  DDRB   |=  _BV(PIN_RFM12_SCK)
+#define SCK_HI()      PORTB  |=  _BV(PIN_RFM12_SCK)
+#define SCK_LOW()     PORTB  &= ~_BV(PIN_RFM12_SCK)
 
-#define XBEE_FRAME_DELIMITER           0x7E
-#define XBEE_FRAME_TYPE_IO_DATA_SAMPLE 0x92
+#define SDO_HI()      PINB   &   _BV(PIN_RFM12_SDO)
+#define IRQ_HI()      PIND   &   _BV(PIN_RFM12_IRQ)
 
-#define STATE_DELIMITER                0
-#define STATE_LENGTH_MSB               1
-#define STATE_LENGTH_LSB               2
-#define STATE_PAYLOAD                  3
-#define STATE_CHECKSUM                 4
+#define PORT_SEL  PORTB
+#define DDR_SEL   DDRB
+#define PORT_SDI  PORTB
+#define DDR_SDI   DDRB
+#define PORT_SCK  PORTB
+#define DDR_SCK   DDRB
+#define PORT_SDO  PORTB
+#define DDR_SDO   DDRB
 
-volatile uint8_t latch, latch_xbee;
+void RFXX_PORT_INIT(void) {
+  SEL_HI();
+  SDI_HI();
+  SEL_OUTPUT();
+  SDI_OUTPUT();
+  SCK_OUTPUT();
+}
 
-static void process_frame();
-static void init();
+uint16_t RFXX_WRT_CMD(uint16_t cmd) {
+  uint16_t temp = 0;
 
-ISR(USART_RX_vect) {
-  static uint8_t state = STATE_DELIMITER, buffer[BUFFER_SIZE], head, checksum;
-  static uint16_t length;
-
-  uint8_t c = UDR;
-
-  switch(state) {
-  case STATE_DELIMITER:
-    if (c == XBEE_FRAME_DELIMITER) {
-      head = 0;
-      checksum = 0;
-      state = STATE_LENGTH_MSB;
+  SCK_LOW();
+  SEL_LOW();
+  for (uint8_t i=0; i<16; i++) {
+    temp <<= 1;
+    if (SDO_HI()) {
+      temp |= 0x0001;
     }
-    break;
-  case STATE_LENGTH_MSB:
-    length = c << 8;
-    state = STATE_LENGTH_LSB;
-    break;
-  case STATE_LENGTH_LSB:
-    length += c;
-    if (length > BUFFER_SIZE) {
-      state = STATE_DELIMITER;
+    SCK_LOW();
+    if (cmd & 0x8000) {
+      SDI_HI();
     } else {
-      state = STATE_PAYLOAD;
+      SDI_LOW();
     }
-    break;
-  case STATE_PAYLOAD:
-    buffer[head] = c;
-    head++;
-    checksum += c;
-    if (head == length) {
-      state = STATE_CHECKSUM;
-    }
-    break;
-  case STATE_CHECKSUM:
-    if (c == 0xFF - checksum) {
-      process_frame(buffer);
-    }
-    state = STATE_DELIMITER;
-    break;
+    SCK_HI();
+    cmd <<= 1;
   }
+  SCK_LOW();
+  SEL_HI();
+  return temp;
 }
 
-ISR(USI_OVERFLOW_vect) {
-  static uint8_t data_temp, counter;
-
-  USISR |= 0x0E;
-
-  if (S88_LOAD) {
-    USIDR = latch;
-    data_temp = latch_xbee;
-    latch = 0;
-    latch_xbee = 0;
-    counter = 0;
-  } else {
-    counter++;
-    if (counter == 8) {
-      uint8_t data_in = USIDR;
-      USIDR = data_temp;
-      data_temp = data_in;
-      counter = 0;
-    }
-  }
+void RF12_INIT(void){
+  RFXX_WRT_CMD(0x80E8); // EL,EF,868band,12.5pF
+  RFXX_WRT_CMD(0x8239); // !er,!ebb,ET,ES,EX,!eb,!ew,DC
+  RFXX_WRT_CMD(0xA640); // A140=430.8MHz
+  RFXX_WRT_CMD(0xC647); // 4.8kbps
+  RFXX_WRT_CMD(0x94A0); // VDI,FAST,134kHz,0dBm,-103dBm
+  RFXX_WRT_CMD(0xC2AC); // AL,!ml,DIG,DQD4
+  RFXX_WRT_CMD(0xCA81); // FIFO8,SYNC,!ff,DR
+  RFXX_WRT_CMD(0xCED4); // SYNC=2DD4 
+  RFXX_WRT_CMD(0xC483); // @PWR,NO RSTRIC,!st,!fi,OE,EN
+  RFXX_WRT_CMD(0x9850); // !mp,9810=30kHz,MAX OUT
+  RFXX_WRT_CMD(0xCC77); // OB1 OB0, lpx, ddy DDIT BW0
+  RFXX_WRT_CMD(0xE000); // NOT USE
+  RFXX_WRT_CMD(0xC800); // NOT USE
+  RFXX_WRT_CMD(0xC040); // 1.66MHz,2.2V
 }
 
-static void process_frame(uint8_t buffer[]) {
-  if (buffer[0] == XBEE_FRAME_TYPE_IO_DATA_SAMPLE) {
-    if (buffer[12] == 0x01) {
-      latch_xbee = ~buffer[17] & buffer[14];
-    }
-  }
+void RF12_SEND(uint8_t byte) {
+  while (IRQ_HI()); // wait for previously TX over
+  RFXX_WRT_CMD(0xB800 + byte);
 }
 
-static void init() {
-  DDRB = _BV(PIN_S88_DATA_OUT);
-  PORTB = _BV(PIN_S88_LOAD) | _BV(PIN_S88_CLOCK) | _BV(PIN_FEEDBACK0) | _BV(PIN_FEEDBACK1) | _BV(PIN_FEEDBACK2) | _BV(PIN_FEEDBACK3);
+int main(void) {
+  uint8_t checksum;
 
-  PORTD = _BV(PIN_FEEDBACK4) | _BV(PIN_FEEDBACK5) | _BV(PIN_FEEDBACK6) | _BV(PIN_FEEDBACK7);
-  
-  UBRRH = UBRRH_VALUE;
-  UBRRL = UBRRL_VALUE;
-  UCSRB = _BV(RXEN) | _BV(RXCIE);
-  UCSRC = _BV(UCSZ1) | _BV(UCSZ0);
+  cli();
 
-  loop_until_bit_is_clear(PINB, PIN_S88_CLOCK);
+  DDRD |= _BV(PIN_LED);
 
-  USICR = _BV(USIOIE) | _BV(USIWM0) | _BV(USICS1);
-  USISR |= 0x0F;
-
-  sei();
-}
-
-int main() {
-  init();  
-
-  for(;;) {    
-    latch |= (~PINB & 0x0F) + ((~PIND << 2) & 0xF0);
+  for (uint8_t i=0; i<3; i++) {
+    _delay_ms(200);
+    LED_ON();
+    _delay_ms(200);
+    LED_OFF();
   }
+
+  RFXX_PORT_INIT();
+  RF12_INIT();
+
+  while (1) {
+    LED_ON();
+    RFXX_WRT_CMD(0x0000); // read status register
+    RFXX_WRT_CMD(0x8239); // !er,!ebb,ET,ES,EX,!eb,!ew,DC
+    checksum = 0;
+    RF12_SEND(0xAA);      //PREAMBLE
+    RF12_SEND(0xAA);      //PREAMBLE
+    RF12_SEND(0xAA);      //PREAMBLE
+    RF12_SEND(0x2D);      //SYNC HI BYTE
+    RF12_SEND(0xD4);      //SYNC LOW BYTE
+    RF12_SEND(0x30);      //DATA BYTE 0
+    checksum += 0x30;
+    RF12_SEND(0x31);      //DATA BYTE 1
+    checksum += 0x31;
+    RF12_SEND(0x32);
+    checksum += 0x32;
+    RF12_SEND(0x33);
+    checksum += 0x33;
+    RF12_SEND(0x34);
+    checksum += 0x34;
+    RF12_SEND(0x35);
+    checksum += 0x35;
+    RF12_SEND(0x36);
+    checksum += 0x36;
+    RF12_SEND(0x37);
+    checksum += 0x37;
+    RF12_SEND(0x38);
+    checksum += 0x38;
+    RF12_SEND(0x39);
+    checksum += 0x39;
+    RF12_SEND(0x3A);
+    checksum += 0x3A;
+    RF12_SEND(0x3B);
+    checksum += 0x3B;
+    RF12_SEND(0x3C);
+    checksum += 0x3C;
+    RF12_SEND(0x3D);
+    checksum += 0x3D;
+    RF12_SEND(0x3E);
+    checksum += 0x3E;
+    RF12_SEND(0x3F);      // DATA BYTE 15
+    checksum += 0x3F;
+    RF12_SEND(checksum);  // send chek sum
+    RF12_SEND(0xAA);      // DUMMY BYTE
+    RF12_SEND(0xAA);      // DUMMY BYTE
+    RF12_SEND(0xAA);      // DUMMY BYTE
+    RFXX_WRT_CMD(0x8201);
+    LED_OFF();
+    _delay_ms(1000);
+  }
+  return 0;
 }
