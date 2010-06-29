@@ -12,158 +12,128 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#define PIN_LED       PD5
-#define PIN_RFM12_SEL PB4
-#define PIN_RFM12_SDI PB5
-#define PIN_RFM12_SDO PB6
-#define PIN_RFM12_SCK PB7
-#define PIN_RFM12_IRQ PD2
+#define PIN_LED PD6
+
+#define PIN_SEL PB4
+#define PIN_SDI PB5
+#define PIN_SDO PB6
+#define PIN_SCK PB7
 
 #define LED_ON()  PORTD |=  _BV(PIN_LED)
 #define LED_OFF() PORTD &= ~_BV(PIN_LED)
 
-#define SEL_OUTPUT()  DDRB   |=  _BV(PIN_RFM12_SEL)
-#define SEL_HI()      PORTB  |=  _BV(PIN_RFM12_SEL)
-#define SEL_LOW()     PORTB  &= ~_BV(PIN_RFM12_SEL)
-#define SDI_OUTPUT()  DDRB   |=  _BV(PIN_RFM12_SDI)
-#define SDI_HI()      PORTB  |=  _BV(PIN_RFM12_SDI)
-#define SDI_LOW()     PORTB  &= ~_BV(PIN_RFM12_SDI)
-#define SCK_OUTPUT()  DDRB   |=  _BV(PIN_RFM12_SCK)
-#define SCK_HI()      PORTB  |=  _BV(PIN_RFM12_SCK)
-#define SCK_LOW()     PORTB  &= ~_BV(PIN_RFM12_SCK)
+#define RF12FREQ(freq)	((freq-430.0)/0.0025)							// macro for calculating frequency value out of frequency in MHz
 
-#define SDO_HI()      PINB   &   _BV(PIN_RFM12_SDO)
-#define IRQ_HI()      PIND   &   _BV(PIN_RFM12_IRQ)
-
-#define PORT_SEL  PORTB
-#define DDR_SEL   DDRB
-#define PORT_SDI  PORTB
-#define DDR_SDI   DDRB
-#define PORT_SCK  PORTB
-#define DDR_SCK   DDRB
-#define PORT_SDO  PORTB
-#define DDR_SDO   DDRB
-
-void RFXX_PORT_INIT(void) {
-  SEL_HI();
-  SDI_HI();
-  SEL_OUTPUT();
-  SDI_OUTPUT();
-  SCK_OUTPUT();
-}
-
-uint16_t RFXX_WRT_CMD(uint16_t cmd) {
-  uint16_t temp = 0;
-
-  SCK_LOW();
-  SEL_LOW();
+static void rf12_trans(uint16_t value) {
+  PORTB &= ~_BV(PIN_SEL);
   for (uint8_t i=0; i<16; i++) {
-    temp <<= 1;
-    if (SDO_HI()) {
-      temp |= 0x0001;
-    }
-    SCK_LOW();
-    if (cmd & 0x8000) {
-      SDI_HI();
+    if (value&0x8000) {
+      PORTB |= _BV(PIN_SDI);
     } else {
-      SDI_LOW();
+      PORTB &= ~_BV(PIN_SDI);
     }
-    SCK_HI();
-    cmd <<= 1;
+    PORTB |= _BV(PIN_SCK);
+    value<<=1;
+    _delay_us(0.3);
+    PORTB &= ~_BV(PIN_SCK);
   }
-  SCK_LOW();
-  SEL_HI();
-  return temp;
+  PORTB |= _BV(PIN_SEL);
 }
 
-void RF12_INIT(void){
-  RFXX_WRT_CMD(0x80E8); // EL,EF,868band,12.5pF
-  RFXX_WRT_CMD(0x8239); // !er,!ebb,ET,ES,EX,!eb,!ew,DC
-  RFXX_WRT_CMD(0xA640); // A140=430.8MHz
-  RFXX_WRT_CMD(0xC647); // 4.8kbps
-  RFXX_WRT_CMD(0x94A0); // VDI,FAST,134kHz,0dBm,-103dBm
-  RFXX_WRT_CMD(0xC2AC); // AL,!ml,DIG,DQD4
-  RFXX_WRT_CMD(0xCA81); // FIFO8,SYNC,!ff,DR
-  RFXX_WRT_CMD(0xCED4); // SYNC=2DD4 
-  RFXX_WRT_CMD(0xC483); // @PWR,NO RSTRIC,!st,!fi,OE,EN
-  RFXX_WRT_CMD(0x9850); // !mp,9810=30kHz,MAX OUT
-  RFXX_WRT_CMD(0xCC77); // OB1 OB0, lpx, ddy DDIT BW0
-  RFXX_WRT_CMD(0xE000); // NOT USE
-  RFXX_WRT_CMD(0xC800); // NOT USE
-  RFXX_WRT_CMD(0xC040); // 1.66MHz,2.2V
+static void rf12_setbandwidth(unsigned char bandwidth, unsigned char gain, unsigned char drssi) {
+  rf12_trans(0x9400|((bandwidth&7)<<5)|((gain&3)<<3)|(drssi&7));
 }
 
-void RF12_SEND(uint8_t byte) {
-  while (IRQ_HI()); // wait for previously TX over
-  RFXX_WRT_CMD(0xB800 + byte);
+static void rf12_setfreq(unsigned short freq) {
+  if (freq<96)				// 430,2400MHz
+    freq=96;
+  else if (freq>3903)			// 439,7575MHz
+    freq=3903;
+  rf12_trans(0xA000|freq);
+}
+
+static void rf12_setbaud(unsigned short baud) {
+  if (baud<663)
+    return;
+  if (baud<5400)					// Baudrate= 344827,58621/(R+1)/(1+CS*7)
+    rf12_trans(0xC680|((43104/baud)-1));
+  else
+    rf12_trans(0xC600|((344828UL/baud)-1));
+}
+
+static void rf12_setpower(unsigned char power, unsigned char mod) {	
+  rf12_trans(0x9800|(power&7)|((mod&15)<<4));
+}
+
+static void rf12_init(void) {
+  DDRB  |= _BV(PIN_SDI) | _BV(PIN_SCK) | _BV(PIN_SEL);
+  PORTB |= _BV(PIN_SEL);
+  
+  _delay_ms(100);			// wait until POR done
+  
+  rf12_trans(0xC0E0);			// AVR CLK: 10MHz
+  rf12_trans(0x80E7);			// Enable FIFO, 868MHz
+  rf12_trans(0xC2AB);			// Data Filter: internal
+  rf12_trans(0xCA81);			// Set FIFO mode
+  rf12_trans(0xE000);			// disable wakeuptimer
+  rf12_trans(0xC800);			// disable low duty cycle
+  rf12_trans(0xC4F7);			// AFC settings: autotuning: -10kHz...+7,5kHz
+
+  rf12_setfreq(RF12FREQ(433.92));	// Sende/Empfangsfrequenz auf 433,92MHz einstellen
+  rf12_setbandwidth(4, 1, 4);		// 200kHz Bandbreite, -6dB Verstärkung, DRSSI threshold: -79dBm 
+  rf12_setbaud(19200);			// 19200 baud
+  rf12_setpower(0, 6);			// 1mW Ausgangangsleistung, 120kHz Frequenzshift
+}
+
+void rf12_ready(void) {
+  PORTB &= ~_BV(PIN_SEL);
+  loop_until_bit_is_set(PINB, PIN_SDO);
+}
+
+void rf12_txdata(unsigned char *data, unsigned char number) {
+  unsigned char i;
+  rf12_trans(0x8238);			// TX on
+  rf12_ready();
+  rf12_trans(0xB8AA);
+  rf12_ready();
+  rf12_trans(0xB8AA);
+  rf12_ready();
+  rf12_trans(0xB8AA);
+  rf12_ready();
+  rf12_trans(0xB82D);
+  rf12_ready();
+  rf12_trans(0xB8D4);
+  for (uint8_t i=0; i<number; i++) {
+    rf12_ready();
+    rf12_trans(0xB800|(*data++));
+  }
+  rf12_ready();
+  rf12_trans(0x8208);			// TX off
 }
 
 int main(void) {
-  uint8_t checksum;
-
-  cli();
-
   DDRD |= _BV(PIN_LED);
 
   for (uint8_t i=0; i<3; i++) {
-    _delay_ms(200);
+    _delay_ms(50);
     LED_ON();
-    _delay_ms(200);
+    _delay_ms(50);
     LED_OFF();
   }
 
-  RFXX_PORT_INIT();
-  RF12_INIT();
+  rf12_init();
 
-  while (1) {
-    LED_ON();
-    RFXX_WRT_CMD(0x0000); // read status register
-    RFXX_WRT_CMD(0x8239); // !er,!ebb,ET,ES,EX,!eb,!ew,DC
-    checksum = 0;
-    RF12_SEND(0xAA);      //PREAMBLE
-    RF12_SEND(0xAA);      //PREAMBLE
-    RF12_SEND(0xAA);      //PREAMBLE
-    RF12_SEND(0x2D);      //SYNC HI BYTE
-    RF12_SEND(0xD4);      //SYNC LOW BYTE
-    RF12_SEND(0x30);      //DATA BYTE 0
-    checksum += 0x30;
-    RF12_SEND(0x31);      //DATA BYTE 1
-    checksum += 0x31;
-    RF12_SEND(0x32);
-    checksum += 0x32;
-    RF12_SEND(0x33);
-    checksum += 0x33;
-    RF12_SEND(0x34);
-    checksum += 0x34;
-    RF12_SEND(0x35);
-    checksum += 0x35;
-    RF12_SEND(0x36);
-    checksum += 0x36;
-    RF12_SEND(0x37);
-    checksum += 0x37;
-    RF12_SEND(0x38);
-    checksum += 0x38;
-    RF12_SEND(0x39);
-    checksum += 0x39;
-    RF12_SEND(0x3A);
-    checksum += 0x3A;
-    RF12_SEND(0x3B);
-    checksum += 0x3B;
-    RF12_SEND(0x3C);
-    checksum += 0x3C;
-    RF12_SEND(0x3D);
-    checksum += 0x3D;
-    RF12_SEND(0x3E);
-    checksum += 0x3E;
-    RF12_SEND(0x3F);      // DATA BYTE 15
-    checksum += 0x3F;
-    RF12_SEND(checksum);  // send chek sum
-    RF12_SEND(0xAA);      // DUMMY BYTE
-    RF12_SEND(0xAA);      // DUMMY BYTE
-    RF12_SEND(0xAA);      // DUMMY BYTE
-    RFXX_WRT_CMD(0x8201);
-    LED_OFF();
-    _delay_ms(1000);
+  uint8_t i = 0;
+  unsigned char test[] = "ab";
+  for (;;) {
+    rf12_txdata(test, 2);
+    if (i%2 == 0) {
+      PORTD |= _BV(PIN_LED);
+    } else {
+      PORTD &= ~_BV(PIN_LED);
+    }
+    i+=1;
+    _delay_ms(200);
   }
-  return 0;
 }
+
