@@ -18,6 +18,7 @@
 #define PIN_SDI PB5
 #define PIN_SDO PB6
 #define PIN_SCK PB7
+#define PIN_IRQ PD2
 
 #define LED_ON()  PORTD |=  _BV(PIN_LED)
 #define LED_OFF() PORTD &= ~_BV(PIN_LED)
@@ -73,8 +74,10 @@ static void rf12_setpower(unsigned char power, unsigned char mod) {
 static void rf12_init(void) {
   DDRB  |= _BV(PIN_SDO) | _BV(PIN_SCK) | _BV(PIN_SEL);
   PORTB |= _BV(PIN_SEL);
+  PORTD |= _BV(PIN_IRQ);
 
-  _delay_ms(100);			// wait until POR done
+  rf12_ready();
+  // loop_until_bit_is_clear(PIND, PIN_IRQ); // wait until POR done
   
   rf12_trans(0xC0E0);			// AVR CLK: 10MHz
   rf12_trans(0x80E7);			// Enable FIFO, 868MHz
@@ -92,7 +95,7 @@ static void rf12_init(void) {
 
 void rf12_ready(void) {
   CHIP_SELECT_ON();
-  loop_until_bit_is_set(PINB, PIN_SDI);
+  loop_until_bit_is_clear(PIND, PIN_IRQ);
 }
 
 void rf12_txdata(unsigned char *data, unsigned char number) {
