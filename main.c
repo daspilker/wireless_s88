@@ -24,20 +24,25 @@
 
 #define RF12FREQ(freq)	((freq-430.0)/0.0025)							// macro for calculating frequency value out of frequency in MHz
 
+#define USICR_CLOCK       _BV(USIWM0) | _BV(USITC)
+#define USICR_SHIFT_CLOCK _BV(USIWM0) | _BV(USITC) | _BV(USICLK)
+
+#define CHIP_SELECT_ON()  PORTB &= ~_BV(PIN_SEL)
+#define CHIP_SELECT_OFF() PORTB |= _BV(PIN_SEL)
+
 static void rf12_trans(uint16_t value) {
-  PORTB &= ~_BV(PIN_SEL);
-  for (uint8_t i=0; i<16; i++) {
-    if (value&0x8000) {
-      PORTB |= _BV(PIN_SDI);
-    } else {
-      PORTB &= ~_BV(PIN_SDI);
-    }
-    PORTB |= _BV(PIN_SCK);
-    value<<=1;
-    _delay_us(0.3);
-    PORTB &= ~_BV(PIN_SCK);
+  CHIP_SELECT_ON();
+  USIDR = value >> 8;
+  for (uint8_t i=0; i<8; i++) {
+    USICR = USICR_CLOCK;
+    USICR = USICR_SHIFT_CLOCK;
   }
-  PORTB |= _BV(PIN_SEL);
+  USIDR = value;
+  for (uint8_t i=0; i<8; i++) {
+    USICR = USICR_CLOCK;
+    USICR = USICR_SHIFT_CLOCK;
+  }
+  CHIP_SELECT_OFF();
 }
 
 static void rf12_setbandwidth(unsigned char bandwidth, unsigned char gain, unsigned char drssi) {
@@ -66,9 +71,9 @@ static void rf12_setpower(unsigned char power, unsigned char mod) {
 }
 
 static void rf12_init(void) {
-  DDRB  |= _BV(PIN_SDI) | _BV(PIN_SCK) | _BV(PIN_SEL);
+  DDRB  |= _BV(PIN_SDO) | _BV(PIN_SCK) | _BV(PIN_SEL);
   PORTB |= _BV(PIN_SEL);
-  
+
   _delay_ms(100);			// wait until POR done
   
   rf12_trans(0xC0E0);			// AVR CLK: 10MHz
@@ -86,12 +91,11 @@ static void rf12_init(void) {
 }
 
 void rf12_ready(void) {
-  PORTB &= ~_BV(PIN_SEL);
-  loop_until_bit_is_set(PINB, PIN_SDO);
+  CHIP_SELECT_ON();
+  loop_until_bit_is_set(PINB, PIN_SDI);
 }
 
 void rf12_txdata(unsigned char *data, unsigned char number) {
-  unsigned char i;
   rf12_trans(0x8238);			// TX on
   rf12_ready();
   rf12_trans(0xB8AA);
@@ -128,9 +132,9 @@ int main(void) {
   for (;;) {
     rf12_txdata(test, 2);
     if (i%2 == 0) {
-      PORTD |= _BV(PIN_LED);
+      LED_ON();
     } else {
-      PORTD &= ~_BV(PIN_LED);
+      LED_OFF();
     }
     i+=1;
     _delay_ms(200);
