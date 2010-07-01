@@ -8,11 +8,8 @@
 // http://daniel-spilker.com/
 //
 
-#include <avr/interrupt.h>
 #include <avr/io.h>
-#include <util/delay.h>
-
-#define PIN_LED PD6
+#include "rf12.h"
 
 #define PIN_SEL PB4
 #define PIN_SDI PB5
@@ -20,16 +17,13 @@
 #define PIN_SCK PB7
 #define PIN_IRQ PD2
 
-#define LED_ON()  PORTD |=  _BV(PIN_LED)
-#define LED_OFF() PORTD &= ~_BV(PIN_LED)
-
 #define USICR_CLOCK       _BV(USIWM0) | _BV(USITC)
 #define USICR_SHIFT_CLOCK _BV(USIWM0) | _BV(USITC) | _BV(USICLK)
 
 #define CHIP_SELECT_ON()  PORTB &= ~_BV(PIN_SEL)
 #define CHIP_SELECT_OFF() PORTB |= _BV(PIN_SEL)
 
-static void rf12_trans(uint16_t value) {
+void rf12_trans(uint16_t value) {
   CHIP_SELECT_ON();
   USIDR = value >> 8;
   for (uint8_t i=0; i<8; i++) {
@@ -44,12 +38,12 @@ static void rf12_trans(uint16_t value) {
   CHIP_SELECT_OFF();
 }
 
-static void rf12_ready(void) {
+void rf12_ready(void) {
   CHIP_SELECT_ON();
   loop_until_bit_is_clear(PIND, PIN_IRQ);
 }
 
-static void rf12_init(void) {
+void rf12_init(void) {
   DDRB  |= _BV(PIN_SDO) | _BV(PIN_SCK) | _BV(PIN_SEL);
   PORTB |= _BV(PIN_SEL);
   PORTD |= _BV(PIN_IRQ);
@@ -69,7 +63,7 @@ static void rf12_init(void) {
   rf12_trans(0x9860);                     // 1mW Ausgangangsleistung, 120kHz Frequenzshift
 }
 
-static void rf12_txdata(unsigned char *data, unsigned char number) {
+void rf12_txdata(unsigned char *data, unsigned char number) {
   rf12_trans(0x8238);			// TX on
   rf12_ready();
   rf12_trans(0xB8AA);
@@ -89,28 +83,3 @@ static void rf12_txdata(unsigned char *data, unsigned char number) {
   rf12_trans(0x8208);			// TX off
 }
 
-int main(void) {
-  DDRD |= _BV(PIN_LED);
-
-  for (uint8_t i=0; i<3; i++) {
-    _delay_ms(50);
-    LED_ON();
-    _delay_ms(50);
-    LED_OFF();
-  }
-
-  rf12_init();
-
-  uint8_t i = 0;
-  unsigned char test[] = "ab";
-  for (;;) {
-    rf12_txdata(test, 2);
-    if (i%2 == 0) {
-      LED_ON();
-    } else {
-      LED_OFF();
-    }
-    i+=1;
-    _delay_ms(200);
-  }
-}
