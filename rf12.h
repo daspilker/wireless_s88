@@ -13,3 +13,5 @@
 void rf12_init(void);
 
 void rf12_txdata(unsigned char *data, unsigned char number);
+
+void rf12_rxdata(unsigned char *data, unsigned char number);

@@ -23,19 +23,27 @@
 #define CHIP_SELECT_ON()  PORTB &= ~_BV(PIN_SEL)
 #define CHIP_SELECT_OFF() PORTB |= _BV(PIN_SEL)
 
-void rf12_trans(uint16_t value) {
+#define USIBR _SFR_IO8(0x000)
+
+uint16_t rf12_trans(uint16_t value) {
+  uint16_t result;
+
   CHIP_SELECT_ON();
   USIDR = value >> 8;
   for (uint8_t i=0; i<8; i++) {
     USICR = USICR_CLOCK;
     USICR = USICR_SHIFT_CLOCK;
   }
+  //  result = USIBR << 8;
   USIDR = value;
   for (uint8_t i=0; i<8; i++) {
     USICR = USICR_CLOCK;
     USICR = USICR_SHIFT_CLOCK;
   }
+  //  result |= USIBR;
   CHIP_SELECT_OFF();
+
+  return result;
 }
 
 void rf12_ready(void) {
@@ -75,11 +83,21 @@ void rf12_txdata(unsigned char *data, unsigned char number) {
   rf12_trans(0xB82D);
   rf12_ready();
   rf12_trans(0xB8D4);
-  for (uint8_t i=0; i<number; i++) {
+  for (uint8_t i = 0; i < number; i++) {
     rf12_ready();
-    rf12_trans(0xB800|(*data++));
+    rf12_trans(0xB800 | (*data++));
   }
   rf12_ready();
   rf12_trans(0x8208);			// TX off
 }
 
+void rf12_rxdata(unsigned char *data, unsigned char number) {
+  rf12_trans(0x82C8);			// RX on
+  rf12_trans(0xCA81);			// set FIFO mode
+  rf12_trans(0xCA83);			// enable FIFO
+  for (uint8_t i = 0; i < number; i++) {
+    rf12_ready();
+    *data++ = rf12_trans(0xB000);
+  }
+  rf12_trans(0x8208);			// RX off
+}

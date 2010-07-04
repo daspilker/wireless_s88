@@ -30,15 +30,14 @@ int main(void) {
   rf12_init();
 
   uint8_t i = 0;
-  unsigned char data[] = "ab";
+  unsigned char data[2];
   for (;;) {
-    rf12_txdata(data, 2);
+    rf12_rxdata(data, 2);
     if (i%2 == 0) {
       LED_ON();
     } else {
       LED_OFF();
     }
     i+=1;
-    _delay_ms(200);
   }
 }

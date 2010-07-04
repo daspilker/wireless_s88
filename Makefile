@@ -14,21 +14,28 @@ BAUD       = 9600
 PORT       = USB
 FUSES      = DFDC
 
-SOURCES    = transmitter.c rf12.c
-OBJECTS    = $(SOURCES:.c=.o)
+TRANSMITTER_SOURCES    = transmitter.c rf12.c
+TRANSMITTER_OBJECTS    = $(TRANSMITTER_SOURCES:.c=.o)
 
-CFLAGS     = -Wall -O3 -mmcu=$(DEVICE) -std=c99
+RECEIVER_SOURCES    = receiver.c rf12.c
+RECEIVER_OBJECTS    = $(RECEIVER_SOURCES:.c=.o)
+
+CFLAGS     = -Wall -O2 -mmcu=$(DEVICE) -std=c99
 CPPFLAGS   = -DF_CPU=$(CLOCK) -DBAUD=$(BAUD)
 CC         = avr-gcc
 
 .PHONY: all
-all: transmitter.hex
+all: transmitter.hex receiver.hex
 
--include $(SOURCES:.c=.d)
+-include $(TRANSMITTER_SOURCES:.c=.d) $(RECEIVER_SOURCES:.c=.d)
 
-.PHONY: flash
-flash: transmitter.hex
+.PHONY: flash-transmitter
+flash-transmitter: transmitter.hex
 	stk500 -d$(DEVICE) -c$(PORT) -e -iftransmitter.hex -pf -vf
+
+.PHONY: receiver-transmitter
+flash-receiver: receiver.hex
+	stk500 -d$(DEVICE) -c$(PORT) -e -ifreceiver.hex -pf -vf
 
 .PHONY: fuse
 fuse:
@@ -36,13 +43,20 @@ fuse:
 
 .PHONY: clean
 clean:
-	rm -f transmitter.hex transmitter.elf $(OBJECTS) $(SOURCES:.c=.d)
+	rm -f transmitter.hex transmitter.elf $(TRANSMITTER_OBJECTS) $(TRANSMITTER_SOURCES:.c=.d)
+	rm -f receiver.hex receiver.elf $(RECEIVER_OBJECTS) $(RECEIVER_SOURCES:.c=.d)
 
-transmitter.elf: $(OBJECTS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o transmitter.elf $(OBJECTS)
+transmitter.elf: $(TRANSMITTER_OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o transmitter.elf $(TRANSMITTER_OBJECTS)
 
 transmitter.hex: transmitter.elf
 	avr-objcopy -j .text -j .data -O ihex transmitter.elf transmitter.hex
+
+receiver.elf: $(RECEIVER_OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o receiver.elf $(RECEIVER_OBJECTS)
+
+receiver.hex: receiver.elf
+	avr-objcopy -j .text -j .data -O ihex receiver.elf receiver.hex
 
 %.d: %.c
 	@set -e; $(CC) -MM $(CPPFLAGS) $< -o $@.$$$$; \
