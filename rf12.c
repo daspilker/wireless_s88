@@ -23,8 +23,6 @@
 #define CHIP_SELECT_ON()  PORTB &= ~_BV(PIN_SEL)
 #define CHIP_SELECT_OFF() PORTB |= _BV(PIN_SEL)
 
-#define USIBR _SFR_IO8(0x000)
-
 uint16_t rf12_trans(uint16_t value) {
   uint16_t result;
 
@@ -34,13 +32,13 @@ uint16_t rf12_trans(uint16_t value) {
     USICR = USICR_CLOCK;
     USICR = USICR_SHIFT_CLOCK;
   }
-  //  result = USIBR << 8;
+  result = USIDR << 8;
   USIDR = value;
   for (uint8_t i=0; i<8; i++) {
     USICR = USICR_CLOCK;
     USICR = USICR_SHIFT_CLOCK;
   }
-  //  result |= USIBR;
+  result |= USIDR;
   CHIP_SELECT_OFF();
 
   return result;
@@ -74,7 +72,7 @@ void rf12_init(void) {
   rf12_trans(0x9860);                     // 1mW Ausgangangsleistung, 120kHz Frequenzshift
 }
 
-void rf12_txdata(unsigned char *data, unsigned char number) {
+void rf12_txdata(uint8_t *data, uint8_t number) {
   rf12_trans(0x8238);			// TX on
   rf12_ready();
   rf12_trans(0xB8AA);
@@ -94,7 +92,7 @@ void rf12_txdata(unsigned char *data, unsigned char number) {
   rf12_trans(0x8208);			// TX off
 }
 
-void rf12_rxdata(unsigned char *data, unsigned char number) {
+void rf12_rxdata(uint8_t *data, uint8_t number) {
   rf12_trans(0x82C8);			// RX on
   rf12_trans(0xCA81);			// enable FIFO, clear bit 1 to restart synchron pattern recognition
   rf12_trans(0xCA83);			// enable FIFO, set bit 1 to restart synchron pattern recognition

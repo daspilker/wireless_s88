@@ -30,7 +30,7 @@ int main(void) {
   rf12_init();
 
   uint8_t i = 0;
-  unsigned char data[] = "ab";
+  uint8_t data[] = "ab";
   for (;;) {
     rf12_txdata(data, 2);
     if (i%2 == 0) {

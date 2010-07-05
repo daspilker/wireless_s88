@@ -30,14 +30,16 @@ int main(void) {
   rf12_init();
 
   uint8_t i = 0;
-  unsigned char data[2];
+  uint8_t data[2];
   for (;;) {
     rf12_rxdata(data, 2);
+    if (data[0] == 0x61) {
+      i+=1;
+    }
     if (i%2 == 0) {
       LED_ON();
     } else {
       LED_OFF();
     }
-    i+=1;
   }
 }
