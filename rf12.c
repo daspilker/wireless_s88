@@ -56,7 +56,10 @@ void rf12_init(void) {
   PORTB |= _BV(PIN_SEL);
   PORTD |= _BV(PIN_IRQ);
 
-  loop_until_bit_is_clear(PIND, PIN_IRQ); // wait until POR done
+  rf12_trans(0x0000);
+  while (bit_is_clear(PIND, PIN_IRQ)) {
+    rf12_trans(0x0000);
+  }
   
   rf12_trans(0xC0E0);	                  // AVR CLK: 10MHz
   rf12_trans(0x80E7);			  // Enable FIFO, 868MHz
