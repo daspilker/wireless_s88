@@ -12,6 +12,6 @@
 
 void rf12_init(uint8_t node_id);
 
-void rf12_txdata(uint8_t node_id, unsigned char *data, unsigned char number);
+void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number);
 
-void rf12_rxdata(unsigned char *data, unsigned char number);
+void rf12_rxdata(uint8_t *data, uint8_t number);
