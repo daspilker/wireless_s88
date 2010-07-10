@@ -49,7 +49,7 @@ void rf12_ready(void) {
   loop_until_bit_is_clear(PIND, PIN_IRQ);
 }
 
-void rf12_init(void) {
+void rf12_init(uint8_t node_id) {
   DDRB  |= _BV(PIN_SDO) | _BV(PIN_SCK) | _BV(PIN_SEL);
   PORTB |= _BV(PIN_SEL);
   PORTD |= _BV(PIN_IRQ);
@@ -66,7 +66,7 @@ void rf12_init(void) {
   rf12_trans(0x94A2);            // VDI,FAST,134kHz,0dBm,-91dBm
   rf12_trans(0xC2AC);            // AL,!ml,DIG,DQD4
   rf12_trans(0xCA83);            // FIFO8,SYNC,!ff,DR
-  rf12_trans(0xCED4);            // SYNC=2DD4
+  rf12_trans(0xCE00 | node_id);  // SYNC=2DD4
   rf12_trans(0xC483);            // @PWR,NO RSTRIC,!st,!fi,OE,EN
   rf12_trans(0x9850);            // !mp,90kHz,MAX OUT
   rf12_trans(0xCC77);            // OB1，OB0, LPX,！ddy，DDIT，BW0
@@ -75,7 +75,7 @@ void rf12_init(void) {
   rf12_trans(0xC049);            // 1.66MHz,3.1V
 }
 
-void rf12_txdata(uint8_t *data, uint8_t number) {
+void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
   rf12_trans(0x8238);			// TX on
   rf12_ready();
   rf12_trans(0xB8AA);
@@ -86,7 +86,7 @@ void rf12_txdata(uint8_t *data, uint8_t number) {
   rf12_ready();
   rf12_trans(0xB82D);
   rf12_ready();
-  rf12_trans(0xB8D4);
+  rf12_trans(0xB800 | node_id);
   for (uint8_t i = 0; i < number; i++) {
     rf12_ready();
     rf12_trans(0xB800 | (*data++));

@@ -27,7 +27,7 @@ int main(void) {
     LED_OFF();
   }
 
-  rf12_init();
+  rf12_init(0x00);
 
   uint8_t data[2];
   for (;;) {

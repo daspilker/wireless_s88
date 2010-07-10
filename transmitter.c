@@ -27,17 +27,17 @@ int main(void) {
     LED_OFF();
   }
 
-  rf12_init();
+  rf12_init(0x01);
 
   uint8_t i = 0;
   uint8_t data_on[] = "ax";
   uint8_t data_off[] = "by";
   for (;;) {
     if (i%2 == 0) {
-      rf12_txdata(data_on, 2);
+      rf12_txdata(0x00, data_on, 2);
       LED_ON();
     } else {
-      rf12_txdata(data_off, 2);
+      rf12_txdata(0x00, data_off, 2);
       LED_OFF();
     }
     i+=1;

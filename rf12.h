@@ -10,8 +10,8 @@
 
 #include <stdint.h>
 
-void rf12_init(void);
+void rf12_init(uint8_t node_id);
 
-void rf12_txdata(unsigned char *data, unsigned char number);
+void rf12_txdata(uint8_t node_id, unsigned char *data, unsigned char number);
 
 void rf12_rxdata(unsigned char *data, unsigned char number);
