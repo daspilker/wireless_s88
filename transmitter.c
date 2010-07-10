@@ -30,12 +30,14 @@ int main(void) {
   rf12_init();
 
   uint8_t i = 0;
-  uint8_t data[] = "ab";
+  uint8_t data_on[] = "ax";
+  uint8_t data_off[] = "by";
   for (;;) {
-    rf12_txdata(data, 2);
     if (i%2 == 0) {
+      rf12_txdata(data_on, 2);
       LED_ON();
     } else {
+      rf12_txdata(data_off, 2);
       LED_OFF();
     }
     i+=1;
