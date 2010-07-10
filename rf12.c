@@ -58,18 +58,21 @@ void rf12_init(void) {
   while (bit_is_clear(PIND, PIN_IRQ)) {
     rf12_trans(0x0000);
   }
-  
-  rf12_trans(0xC0E0);	                  // AVR CLK: 10MHz
-  rf12_trans(0x80E7);			  // Enable FIFO, 868MHz
-  rf12_trans(0xC2AB);			  // Data Filter: internal
-  rf12_trans(0xCA81);			  // Set FIFO mode
-  rf12_trans(0xE000);			  // disable wakeuptimer
-  rf12_trans(0xC800);			  // disable low duty cycle
-  rf12_trans(0xC4F7);			  // AFC settings: autotuning: -10kHz...+7,5kHz
-  rf12_trans(0xA620);                     // Sende/Empfangsfrequenz auf 433,92MHz einstellen
-  rf12_trans(0x948C);                     // 200kHz Bandbreite, -6dB Verst�rkung, DRSSI threshold: -79dBm 
-  rf12_trans(0xC610);                     // 19200 baud
-  rf12_trans(0x9860);                     // 1mW Ausgangangsleistung, 120kHz Frequenzshift
+
+  rf12_trans(0x8201);
+  rf12_trans(0x80E7);            // enable TX register, enable RX FIFO buffer, 868MHz, 12.0pF
+  rf12_trans(0xA460);            // 868.000MHz
+  rf12_trans(0xC606);            // 49.26kbps
+  rf12_trans(0x94A2);            // VDI,FAST,134kHz,0dBm,-91dBm
+  rf12_trans(0xC2AC);            // AL,!ml,DIG,DQD4
+  rf12_trans(0xCA83);            // FIFO8,SYNC,!ff,DR
+  rf12_trans(0xCED4);            // SYNC=2DD4
+  rf12_trans(0xC483);            // @PWR,NO RSTRIC,!st,!fi,OE,EN
+  rf12_trans(0x9850);            // !mp,90kHz,MAX OUT
+  rf12_trans(0xCC77);            // OB1，OB0, LPX,！ddy，DDIT，BW0
+  rf12_trans(0xE000);            // NOT USE
+  rf12_trans(0xC800);            // NOT USE
+  rf12_trans(0xC049);            // 1.66MHz,3.1V
 }
 
 void rf12_txdata(uint8_t *data, uint8_t number) {
