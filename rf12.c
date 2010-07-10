@@ -99,8 +99,6 @@ void rf12_txdata(uint8_t *data, uint8_t number) {
 
 void rf12_rxdata(uint8_t *data, uint8_t number) {
   rf12_trans(0x82C8);			// RX on
-  rf12_trans(0xCA81);			// enable FIFO, clear bit 1 to restart synchron pattern recognition
-  rf12_trans(0xCA83);			// enable FIFO, set bit 1 to restart synchron pattern recognition
   for (uint8_t i = 0; i < number; i++) {
     rf12_ready();
     *data++ = rf12_trans(0xB000);
