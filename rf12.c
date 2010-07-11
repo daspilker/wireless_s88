@@ -45,7 +45,6 @@ uint16_t rf12_trans(uint16_t value) {
 }
 
 void rf12_ready(void) {
-  CHIP_SELECT_ON();
   loop_until_bit_is_clear(PIND, PIN_IRQ);
 }
 
