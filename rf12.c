@@ -76,7 +76,7 @@ void rf12_init(uint8_t node_id) {
 }
 
 void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
-  rf12_trans(0x8238);			// TX on
+  rf12_trans(0x8239);			// TX on
   rf12_ready();
   rf12_trans(0xB8AA);
   rf12_ready();
@@ -94,14 +94,14 @@ void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
   rf12_ready();
   rf12_trans(0xB8AA);
   rf12_ready();
-  rf12_trans(0x8208);			// TX off
+  rf12_trans(0x8209);			// TX off
 }
 
 void rf12_rxdata(uint8_t *data, uint8_t number) {
-  rf12_trans(0x82C8);			// RX on
+  rf12_trans(0x82C9);			// RX on
   for (uint8_t i = 0; i < number; i++) {
     rf12_ready();
     *data++ = rf12_trans(0xB000);
   }
-  rf12_trans(0x8208);			// RX off
+  rf12_trans(0x8209);			// RX off
 }
