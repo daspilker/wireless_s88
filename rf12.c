@@ -95,6 +95,8 @@ void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
   rf12_trans(0xB8AA);
   rf12_ready();
   rf12_trans(0x8209);			// TX off
+  rf12_ready();
+  rf12_trans(0xB8AA);
 }
 
 void rf12_rxdata(uint8_t *data, uint8_t number) {
