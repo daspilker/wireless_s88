@@ -46,6 +46,7 @@ uint16_t rf12_trans(uint16_t value) {
 
 void rf12_ready(void) {
   loop_until_bit_is_clear(PIND, PIN_IRQ);
+  rf12_trans(0x0000);
 }
 
 void rf12_init(uint8_t node_id) {
