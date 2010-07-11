@@ -75,6 +75,10 @@ void rf12_init(uint8_t node_id) {
   rf12_trans(0xC049);            // 1.66MHz,3.1V
 }
 
+uint8_t rf12_can_send(void) {
+  return rf12_trans(0x0000) & 0x0100 ? 0 : 1;
+}
+
 void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
   rf12_trans(0x8239);			// TX on
   rf12_ready();
