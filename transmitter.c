@@ -29,18 +29,18 @@ int main(void) {
 
   rf12_init(0x01);
 
-  uint8_t i = 0;
-  uint8_t data_on[] = "ax";
-  uint8_t data_off[] = "by";
+  uint8_t data_tx[] = "a";
+  uint8_t data_rx[8];
   for (;;) {
-    if (i%2 == 0) {
-      rf12_txdata(0x00, data_on, 2);
+    while (!rf12_can_send());
+    rf12_txdata(0x00, data_tx, 1);
+    rf12_rxdata(data_rx, 1);
+    if (data_rx[0] == data_tx[0]) {
       LED_ON();
     } else {
-      rf12_txdata(0x00, data_off, 2);
       LED_OFF();
     }
-    i+=1;
-    _delay_ms(200);
+    data_tx[0] += 1;
+    _delay_ms(1000);
   }
 }

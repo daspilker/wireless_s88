@@ -29,12 +29,16 @@ int main(void) {
 
   rf12_init(0x00);
 
-  uint8_t data[2];
+  uint8_t i = 0;
+  uint8_t data[1];
   for (;;) {
-    rf12_rxdata(data, 2);
-    if (data[0] == 0x61 && data[1] == 0x78) {
+    rf12_rxdata(data, 1);
+    while (!rf12_can_send());
+    rf12_txdata(0x01, data, 1);
+    i += 1;
+    if (i % 2 == 0) {
       LED_ON();
-    } else if (data[0] == 0x62 && data[1] == 0x79) {
+    } else {
       LED_OFF();
     }
   }
