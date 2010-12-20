@@ -11,6 +11,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include "rf12.h"
+#include "common.h"
 
 #define PIN_LED PD6
 
@@ -27,19 +28,24 @@ int main(void) {
     LED_OFF();
   }
 
-  rf12_init(0x00);
+  rf12_init(RECEIVER_NODE_ID);
 
   uint8_t i = 0;
-  uint8_t data[1];
+  uint8_t current_node_id = 0x01;
+  uint8_t buffer[3];
   for (;;) {
-    rf12_rxdata(data, 1);
-    while (!rf12_can_send());
-    rf12_txdata(0x01, data, 1);
-    i += 1;
-    if (i % 2 == 0) {
-      LED_ON();
-    } else {
-      LED_OFF();
+    buffer[0] = POLL_COMMAND;
+    buffer[1] = ~POLL_COMMAND;
+    rf12_txdata(current_node_id, buffer, 2);
+    rf12_rxdata(buffer, 3);
+    if (buffer[0] == current_node_id && buffer[2] == (buffer[0] ^ buffer[1])) {
+      if (i % 2 == 0) {
+	LED_ON();
+      } else {
+	LED_OFF();
+      }
+      i += 1;
     }
+    _delay_ms(1000);
   }
 }

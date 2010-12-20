@@ -11,11 +11,14 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include "rf12.h"
+#include "common.h"
 
 #define PIN_LED PD6
 
 #define LED_ON()  PORTD |=  _BV(PIN_LED)
 #define LED_OFF() PORTD &= ~_BV(PIN_LED)
+
+static volatile uint8_t feedback;
 
 int main(void) {
   DDRD |= _BV(PIN_LED);
@@ -27,20 +30,26 @@ int main(void) {
     LED_OFF();
   }
 
-  rf12_init(0x01);
+  uint8_t node_id = 0x01;
 
-  uint8_t data_tx[] = "a";
-  uint8_t data_rx[8];
+  rf12_init(node_id);
+
+  uint8_t i = 0;
+  uint8_t buffer[3];
   for (;;) {
-    while (!rf12_can_send());
-    rf12_txdata(0x00, data_tx, 1);
-    rf12_rxdata(data_rx, 1);
-    if (data_rx[0] == data_tx[0]) {
-      LED_ON();
-    } else {
-      LED_OFF();
+    rf12_rxdata(buffer, 2);
+    uint8_t check = ~buffer[0];
+    if (buffer[0] == POLL_COMMAND && buffer[1] == check) {
+      buffer[0] = node_id;
+      buffer[1] = feedback;
+      buffer[2] = node_id ^ feedback;
+      rf12_txdata(RECEIVER_NODE_ID, buffer, 3);
+      i += 1;
+      if (i % 2 == 0) {
+	LED_ON();
+      } else {
+	LED_OFF();
+      }
     }
-    data_tx[0] += 1;
-    _delay_ms(1000);
   }
 }
