@@ -13,18 +13,11 @@
 #include <avr/interrupt.h>
 #include <util/setbaud.h>
 
+#define PIN_S88_RESET                  PB3
 #define PIN_S88_LOAD                   PB4
 #define PIN_S88_DATA_IN                PB5
 #define PIN_S88_DATA_OUT               PB6
 #define PIN_S88_CLOCK                  PB7
-#define PIN_FEEDBACK0                  PB0
-#define PIN_FEEDBACK1                  PB1
-#define PIN_FEEDBACK2                  PB2
-#define PIN_FEEDBACK3                  PB3
-#define PIN_FEEDBACK4                  PD2
-#define PIN_FEEDBACK5                  PD3
-#define PIN_FEEDBACK6                  PD4
-#define PIN_FEEDBACK7                  PD5
 
 #define S88_LOAD                       bit_is_set(PINB, PIN_S88_LOAD)
 
@@ -39,7 +32,7 @@
 #define STATE_PAYLOAD                  3
 #define STATE_CHECKSUM                 4
 
-volatile uint8_t latch, latch_xbee;
+volatile uint8_t latch_xbee;
 
 static void process_frame();
 static void init();
@@ -93,10 +86,8 @@ ISR(USI_OVERFLOW_vect) {
   USISR |= 0x0E;
 
   if (S88_LOAD) {
-    USIDR = latch;
-    data_temp = latch_xbee;
-    latch = 0;
-    latch_xbee = 0;
+    USIDR = latch_xbee;
+    data_temp = 0;
     counter = 0;
   } else {
     counter++;
@@ -119,10 +110,8 @@ static void process_frame(uint8_t buffer[]) {
 
 static void init() {
   DDRB = _BV(PIN_S88_DATA_OUT);
-  PORTB = _BV(PIN_S88_LOAD) | _BV(PIN_S88_CLOCK) | _BV(PIN_FEEDBACK0) | _BV(PIN_FEEDBACK1) | _BV(PIN_FEEDBACK2) | _BV(PIN_FEEDBACK3);
+  PORTB = _BV(PIN_S88_LOAD) | _BV(PIN_S88_CLOCK);
 
-  PORTD = _BV(PIN_FEEDBACK4) | _BV(PIN_FEEDBACK5) | _BV(PIN_FEEDBACK6) | _BV(PIN_FEEDBACK7);
-  
   UBRRH = UBRRH_VALUE;
   UBRRL = UBRRL_VALUE;
   UCSRB = _BV(RXEN) | _BV(RXCIE);
@@ -139,7 +128,5 @@ static void init() {
 int main() {
   init();  
 
-  for(;;) {    
-    latch |= (~PINB & 0x0F) + ((~PIND << 2) & 0xF0);
-  }
+  for(;;);
 }
