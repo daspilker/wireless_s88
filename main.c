@@ -110,7 +110,6 @@ static void process_frame(uint8_t buffer[]) {
 
 static void init() {
   DDRB = _BV(PIN_S88_DATA_OUT);
-  PORTB = _BV(PIN_S88_LOAD) | _BV(PIN_S88_CLOCK);
 
   UBRRH = UBRRH_VALUE;
   UBRRL = UBRRL_VALUE;
