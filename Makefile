@@ -17,7 +17,7 @@ FUSES      = DFDC
 SOURCES    = main.c
 OBJECTS    = $(SOURCES:.c=.o)
 
-CFLAGS     = -Wall -Os -mmcu=$(DEVICE) -std=c99
+CFLAGS     = -Wall -O3 -mmcu=$(DEVICE) -std=c99
 CPPFLAGS   = -DF_CPU=$(CLOCK) -DBAUD=$(BAUD)
 CC         = avr-gcc
 
