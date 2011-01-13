@@ -19,8 +19,7 @@
 #define PIN_S88_DATA_OUT               PB6
 #define PIN_S88_CLOCK                  PB7
 
-#define S88_LOAD                       bit_is_set(PINB, PIN_S88_LOAD)
-
+#define S88_INPUT_BUFFER_SIZE          2
 #define BUFFER_SIZE                    24
 
 #define XBEE_FRAME_DELIMITER           0x7E
@@ -33,9 +32,9 @@
 #define STATE_CHECKSUM                 4
 
 volatile uint8_t latch_xbee;
+volatile uint8_t s88_input_buffer_head = 0;
 
 static void process_frame();
-static void init();
 
 ISR(USART_RX_vect) {
   static uint8_t state = STATE_DELIMITER, buffer[BUFFER_SIZE], head, checksum;
@@ -81,22 +80,22 @@ ISR(USART_RX_vect) {
 }
 
 ISR(USI_OVERFLOW_vect) {
-  static uint8_t data_temp, counter;
+  static uint8_t s88_input_buffer[S88_INPUT_BUFFER_SIZE];
 
-  USISR |= 0x0E;
+  s88_input_buffer[s88_input_buffer_head] = USIDR;
+  s88_input_buffer_head += 1;
+  if (s88_input_buffer_head > S88_INPUT_BUFFER_SIZE - 1) {
+    s88_input_buffer_head = 0;
+  }
+  USIDR = s88_input_buffer[s88_input_buffer_head];
+  USISR |= _BV(USIOIF);
+}
 
-  if (S88_LOAD) {
+ISR(PCINT_vect) {
+  if (bit_is_set(PINB, PIN_S88_LOAD)) {
     USIDR = latch_xbee;
-    data_temp = 0;
-    counter = 0;
-  } else {
-    counter++;
-    if (counter == 8) {
-      uint8_t data_in = USIDR;
-      USIDR = data_temp;
-      data_temp = data_in;
-      counter = 0;
-    }
+    USISR = 0x00;
+    s88_input_buffer_head = 0;
   }
 }
 
@@ -116,10 +115,10 @@ static void init() {
   UCSRB = _BV(RXEN) | _BV(RXCIE);
   UCSRC = _BV(UCSZ1) | _BV(UCSZ0);
 
-  loop_until_bit_is_clear(PINB, PIN_S88_CLOCK);
+  USICR = _BV(USIOIE) | _BV(USIWM0) | _BV(USICS1) | _BV(USICS0);
 
-  USICR = _BV(USIOIE) | _BV(USIWM0) | _BV(USICS1);
-  USISR |= 0x0F;
+  PCMSK = _BV(PCINT4);
+  GIMSK |= _BV(PCIE);
 
   sei();
 }
