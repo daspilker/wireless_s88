@@ -19,6 +19,7 @@
 #define PIN_S88_DATA_OUT               PB6
 #define PIN_S88_CLOCK                  PB7
 
+#define S88_INPUT_BUFFER_SIZE          2
 #define BUFFER_SIZE                    24
 
 #define XBEE_FRAME_DELIMITER           0x7E
@@ -31,6 +32,7 @@
 #define STATE_CHECKSUM                 4
 
 volatile uint8_t latch_xbee;
+volatile uint8_t s88_input_buffer_head = 0;
 
 static void process_frame();
 
@@ -78,7 +80,14 @@ ISR(USART_RX_vect) {
 }
 
 ISR(USI_OVERFLOW_vect) {
-  USIDR = 0x00;
+  static uint8_t s88_input_buffer[S88_INPUT_BUFFER_SIZE];
+
+  s88_input_buffer[s88_input_buffer_head] = USIDR;
+  s88_input_buffer_head += 1;
+  if (s88_input_buffer_head > S88_INPUT_BUFFER_SIZE - 1) {
+    s88_input_buffer_head = 0;
+  }
+  USIDR = s88_input_buffer[s88_input_buffer_head];
   USISR |= _BV(USIOIF);
 }
 
@@ -86,6 +95,7 @@ ISR(PCINT_vect) {
   if (bit_is_set(PINB, PIN_S88_LOAD)) {
     USIDR = latch_xbee;
     USISR = 0x00;
+    s88_input_buffer_head = 0;
   }
 }
 
