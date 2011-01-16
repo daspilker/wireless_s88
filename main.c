@@ -31,6 +31,11 @@
 #define STATE_PAYLOAD                  3
 #define STATE_CHECKSUM                 4
 
+#define XBEE_FRAME_TYPE(buffer)           buffer[0]
+#define XBEE_NUMBER_OF_SAMPLES(buffer)    buffer[12]
+#define XBEE_DIGITAL_CHANNEL_MASK(buffer) buffer[14]
+#define XBEE_DIGITAL_SAMPLE(buffer)       buffer[17]
+
 volatile uint8_t latch_xbee;
 volatile uint8_t s88_input_buffer_head = 0;
 
@@ -64,7 +69,7 @@ ISR(USART_RX_vect) {
     break;
   case STATE_PAYLOAD:
     buffer[head] = c;
-    head++;
+    head += 1;
     checksum += c;
     if (head == length) {
       state = STATE_CHECKSUM;
@@ -84,7 +89,7 @@ ISR(USI_OVERFLOW_vect) {
 
   s88_input_buffer[s88_input_buffer_head] = USIDR;
   s88_input_buffer_head += 1;
-  if (s88_input_buffer_head > S88_INPUT_BUFFER_SIZE - 1) {
+  if (s88_input_buffer_head == S88_INPUT_BUFFER_SIZE) {
     s88_input_buffer_head = 0;
   }
   USIDR = s88_input_buffer[s88_input_buffer_head];
@@ -100,9 +105,9 @@ ISR(PCINT_vect) {
 }
 
 static void process_frame(uint8_t buffer[]) {
-  if (buffer[0] == XBEE_FRAME_TYPE_IO_DATA_SAMPLE) {
-    if (buffer[12] == 0x01) {
-      latch_xbee = ~buffer[17] & buffer[14];
+  if (XBEE_FRAME_TYPE(buffer) == XBEE_FRAME_TYPE_IO_DATA_SAMPLE) {
+    if (XBEE_NUMBER_OF_SAMPLES(buffer) == 1) {
+      latch_xbee = ~XBEE_DIGITAL_SAMPLE(buffer) & XBEE_DIGITAL_CHANNEL_MASK(buffer);
     }
   }
 }
