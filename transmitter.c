@@ -9,19 +9,42 @@
 //
 
 #include <avr/io.h>
+#include <util/atomic.h>
 #include <util/delay.h>
 #include "rf12.h"
 #include "common.h"
 
-#define PIN_LED PD6
+#define PIN_LED PB3
+#define PORT_LED PORTB
+#define DDR_LED DDRB
 
-#define LED_ON()  PORTD |=  _BV(PIN_LED)
-#define LED_OFF() PORTD &= ~_BV(PIN_LED)
+#define ADDRESS_INPUT_MASK 0x7B;
+#ifndef DEBUG
+#define FEEDBACK_INPUT_MASK 0x0F;
+#else
+#define FEEDBACK_INPUT_MASK 0x07;
+
+#define LED_ON()  PORT_LED |=  _BV(PIN_LED)
+#define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
+#define IS_LED_ON() bit_is_set(PORT_LED, PIN_LED)
+#endif
 
 static volatile uint8_t feedback;
+static uint8_t node_id;
 
-int main(void) {
-  DDRD |= _BV(PIN_LED);
+static void read_feedback();
+
+ISR(PCINT_vect) {
+  read_feedback();
+}
+
+static void read_feedback() {
+  feedback |= ~PINB & FEEDBACK_INPUT_MASK;
+}
+
+static void init() {
+#ifdef DEBUG
+  DDR_LED |= _BV(PIN_LED);
 
   for (uint8_t i=0; i<3; i++) {
     _delay_ms(50);
@@ -29,27 +52,45 @@ int main(void) {
     _delay_ms(50);
     LED_OFF();
   }
+#endif
 
-  uint8_t node_id = 0x01;
+  PORTD |= ADDRESS_INPUT_MASK;
+  PORTB |= FEEDBACK_INPUT_MASK;
+
+  PCMSK = FEEDBACK_INPUT_MASK;
+  GIMSK |= _BV(PCIE);
+
+  uint8_t temp_node_id = ~PIND & ADDRESS_INPUT_MASK;
+  node_id = (temp_node_id & 0x03) | ((temp_node_id & 0x78) >> 1);
 
   rf12_init(node_id);
 
-  uint8_t i = 0;
+  sei();
+}
+
+int main(void) {
+  init();
+
   uint8_t buffer[3];
   for (;;) {
     rf12_rxdata(buffer, 2);
     uint8_t check = ~buffer[0];
     if (buffer[0] == POLL_COMMAND && buffer[1] == check) {
-      buffer[0] = node_id;
-      buffer[1] = feedback;
-      buffer[2] = node_id ^ feedback;
+      ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+	read_feedback();
+	buffer[0] = node_id;
+	buffer[1] = feedback;
+	buffer[2] = node_id ^ feedback;
+	feedback = 0;
+      }
       rf12_txdata(RECEIVER_NODE_ID, buffer, 3);
-      i += 1;
-      if (i % 2 == 0) {
+#ifdef DEBUG
+      if (IS_LED_ON()) {
 	LED_ON();
       } else {
 	LED_OFF();
       }
+#endif
     }
   }
 }

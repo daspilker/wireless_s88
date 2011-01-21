@@ -9,6 +9,7 @@
 //
 
 #include <avr/io.h>
+#include "stdbool.h"
 #include "rf12.h"
 
 #define PIN_SEL PB4
@@ -49,6 +50,25 @@ void rf12_ready(void) {
   rf12_trans(0x0000);
 }
 
+bool rf12_ready_timeout(void) {
+  TCNT0 = 0x00;
+  TIFR |= _BV(TOV0);
+  TIMSK |= _BV(TOIE0);
+  TCCR0B |= _BV(CS02) | _BV(CS00);
+
+  while(bit_is_set(PIND, PIN_IRQ) && bit_is_clear(TIFR, TOV0));
+
+  TIMSK &= ~_BV(TOIE0);
+  TCCR0B &= ~(_BV(CS02) | _BV(CS00));
+
+  if (bit_is_set(TIFR, TOV0)) {
+    return false;
+  } else {
+    rf12_trans(0x0000);
+    return true;
+  }
+}
+
 void rf12_init(uint8_t node_id) {
   DDRB  |= _BV(PIN_SDO) | _BV(PIN_SCK) | _BV(PIN_SEL);
   PORTB |= _BV(PIN_SEL);
@@ -75,8 +95,8 @@ void rf12_init(uint8_t node_id) {
   rf12_trans(0xC049);            // 1.66MHz,3.1V
 }
 
-uint8_t rf12_can_send(void) {
-  return rf12_trans(0x0000) & 0x0100 ? 0 : 1;
+bool rf12_can_send(void) {
+  return rf12_trans(0x0000) & 0x0100 ? false : true;
 }
 
 void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
@@ -110,4 +130,16 @@ void rf12_rxdata(uint8_t *data, uint8_t number) {
     *data++ = rf12_trans(0xB000);
   }
   rf12_trans(0x8209);			// RX off
+}
+
+bool rf12_rxdata_timeout(uint8_t *data, uint8_t number) {
+  rf12_trans(0x82D9);			// RX on
+  for (uint8_t i = 0; i < number; i++) {
+    if (!rf12_ready_timeout()) {
+      return false;
+    }
+    *data++ = rf12_trans(0xB000);
+  }
+  rf12_trans(0x8209);			// RX off
+  return true;
 }

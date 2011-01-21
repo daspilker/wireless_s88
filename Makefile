@@ -9,10 +9,12 @@
 #
 
 DEVICE     = attiny2313
-CLOCK      = 8000000
+#CLOCK      = 8000000
+CLOCK      = 4000000
 BAUD       = 9600
 PORT       = USB
-FUSES      = DFE4
+#FUSES      = DFE4
+FUSES      = DFE2
 
 TRANSMITTER_SOURCES    = transmitter.c rf12.c
 TRANSMITTER_OBJECTS    = $(TRANSMITTER_SOURCES:.c=.o)

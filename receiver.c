@@ -20,6 +20,7 @@
 
 int main(void) {
   DDRD |= _BV(PIN_LED);
+  DDRB |= _BV(PB0) | _BV(PB1);
 
   for (uint8_t i=0; i<3; i++) {
     _delay_ms(50);
@@ -35,17 +36,28 @@ int main(void) {
   uint8_t buffer[3];
   for (;;) {
     buffer[0] = POLL_COMMAND;
-    buffer[1] = ~POLL_COMMAND;
+    buffer[1] = ~POLL_COMMAND;    
     rf12_txdata(current_node_id, buffer, 2);
-    rf12_rxdata(buffer, 3);
-    if (buffer[0] == current_node_id && buffer[2] == (buffer[0] ^ buffer[1])) {
-      if (i % 2 == 0) {
-	LED_ON();
-      } else {
-	LED_OFF();
+    if (rf12_rxdata_timeout(buffer, 3)) {
+      if (buffer[0] == current_node_id && buffer[2] == (buffer[0] ^ buffer[1])) {
+	if (buffer[1] & 0x01) {
+	  PORTB |= _BV(PB0);
+	} else {
+	  PORTB &= ~_BV(PB0);
+	}
+	if (buffer[1] & 0x02) {
+	  PORTB |= _BV(PB1);
+	} else {
+	  PORTB &= ~_BV(PB1);
+	}
+	if (i % 2 == 0) {
+	  LED_ON();
+	} else {
+	  LED_OFF();
+	}
+	i += 1;
       }
-      i += 1;
+      _delay_ms(50);
     }
-    _delay_ms(1000);
   }
 }
