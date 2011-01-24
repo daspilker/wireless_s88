@@ -10,15 +10,14 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
+#include "rf12.h"
 
+#define POLL_COMMAND     0x01
+
+/*
 ISR(SPI_STC_vect) {
   SPDR = 0x55;
-
-  if (bit_is_set(PORTC, PC1)) {
-    PORTC &= ~_BV(PC1);
-  } else {
-    PORTC |= _BV(PC1);
-  }
 }
 
 ISR(PCINT0_vect) {
@@ -34,17 +33,39 @@ ISR(PCINT0_vect) {
     }
   }
 }
+*/
 
-int main() {
+void init() {
   DDRC |= _BV(PC0) | _BV(PC1);
 
-  PCMSK0 = _BV(PCINT1);
-  PCICR |= _BV(PCIE0);
+  //  PCMSK0 = _BV(PCINT1);
+  //  PCICR |= _BV(PCIE0);
 
-  DDRB |= _BV(PB4);
-  SPCR = _BV(SPIE) | _BV(SPE) | _BV(CPHA);
+  //  DDRB |= _BV(PB4);
+  //  SPCR = _BV(SPIE) | _BV(SPE) | _BV(CPHA);
+
+  rf12_init();
 
   sei();
+}
 
-  for(;;);
+int main() {
+  init();
+
+  uint8_t current_node_id = 0x01;
+  uint8_t buffer[3];
+  for (;;) {
+    buffer[0] = POLL_COMMAND;
+    buffer[1] = ~POLL_COMMAND;    
+    rf12_txdata(current_node_id, buffer, 2);
+    rf12_rxdata(buffer, 3);
+    if (buffer[0] == current_node_id && buffer[2] == (buffer[0] ^ buffer[1])) {
+      if (bit_is_set(PORTC, PC1)) {
+	PORTC &= ~_BV(PC1);
+      } else {
+	PORTC |= _BV(PC1);
+      }
+      _delay_ms(50);
+    }
+  }
 }
