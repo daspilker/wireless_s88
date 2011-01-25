@@ -10,7 +10,6 @@
 
 DEVICE     = atmega328p
 CLOCK      = 8000000
-BAUD       = 1000000
 PORT       = USB
 FUSES      = D9E2
 EXT_FUSES  = FF
@@ -18,8 +17,8 @@ EXT_FUSES  = FF
 SOURCES    = main.c rf12.c
 OBJECTS    = $(SOURCES:.c=.o)
 
-CFLAGS     = -Wall -O2 -mmcu=$(DEVICE) -std=c99
-CPPFLAGS   = -DF_CPU=$(CLOCK) -DBAUD=$(BAUD)
+CFLAGS     = -Wall -O3 -mmcu=$(DEVICE) -std=c99
+CPPFLAGS   = -DF_CPU=$(CLOCK)
 CC         = avr-gcc
 
 .PHONY: all
