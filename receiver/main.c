@@ -22,7 +22,6 @@
 
 #define LED_ON()  PORT_LED |=  _BV(PIN_LED)
 #define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
-#define TOGGLE_LED() {if(bit_is_set(PORT_LED, PIN_LED)) LED_OFF(); else LED_ON();}
 
 /*
 ISR(SPI_STC_vect) {
@@ -76,7 +75,11 @@ int main() {
     rf12_txdata(current_node_id, buffer, 2);
     if (rf12_rxdata_timeout(buffer, 3)) {
       if (buffer[0] == current_node_id && buffer[2] == (buffer[0] ^ buffer[1])) {
-	TOGGLE_LED();
+	if (bit_is_set(PORT_LED, PIN_LED)) {
+	  LED_OFF();
+	} else {
+	  LED_ON();
+	}
       }
       _delay_ms(50);
     }
