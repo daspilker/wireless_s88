@@ -86,9 +86,9 @@ int main(void) {
       rf12_txdata(RECEIVER_NODE_ID, buffer, 3);
 #ifdef DEBUG
       if (IS_LED_ON()) {
-	LED_ON();
-      } else {
 	LED_OFF();
+      } else {
+	LED_ON();
       }
 #endif
     }
