@@ -9,14 +9,9 @@
 //
 
 #include <stdint.h>
-#include "stdbool.h"
 
 void rf12_init(uint8_t node_id);
 
 void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number);
 
 void rf12_rxdata(uint8_t *data, uint8_t number);
-
-bool rf12_rxdata_timeout(uint8_t *data, uint8_t number);
-
-bool rf12_can_send(void);
