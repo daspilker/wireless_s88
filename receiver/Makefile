@@ -38,6 +38,10 @@ fuse:
 clean:
 	rm -f main.hex main.elf $(OBJECTS) $(SOURCES:.c=.d)
 
+.PHONY: size
+size: main.elf
+	avr-size --format=avr --mcu=$(DEVICE) main.elf
+
 main.elf: $(OBJECTS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o main.elf $(OBJECTS)
 

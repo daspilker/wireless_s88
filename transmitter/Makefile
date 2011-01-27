@@ -9,35 +9,25 @@
 #
 
 DEVICE     = attiny2313
-#CLOCK      = 8000000
 CLOCK      = 4000000
-BAUD       = 9600
 PORT       = USB
-#FUSES      = DFE4
 FUSES      = DFE2
 
-TRANSMITTER_SOURCES    = transmitter.c rf12.c
-TRANSMITTER_OBJECTS    = $(TRANSMITTER_SOURCES:.c=.o)
-
-RECEIVER_SOURCES    = receiver.c rf12.c
-RECEIVER_OBJECTS    = $(RECEIVER_SOURCES:.c=.o)
+SOURCES    = main.c rf12.c
+OBJECTS    = $(SOURCES:.c=.o)
 
 CFLAGS     = -Wall -O2 -mmcu=$(DEVICE) -std=c99
-CPPFLAGS   = -DF_CPU=$(CLOCK) -DBAUD=$(BAUD)
+CPPFLAGS   = -DF_CPU=$(CLOCK)
 CC         = avr-gcc
 
 .PHONY: all
-all: transmitter.hex receiver.hex
+all: main.hex
 
--include $(TRANSMITTER_SOURCES:.c=.d) $(RECEIVER_SOURCES:.c=.d)
+-include $(SOURCES:.c=.d)
 
-.PHONY: flash-transmitter
-flash-transmitter: transmitter.hex
-	stk500 -d$(DEVICE) -c$(PORT) -e -iftransmitter.hex -pf -vf
-
-.PHONY: receiver-transmitter
-flash-receiver: receiver.hex
-	stk500 -d$(DEVICE) -c$(PORT) -e -ifreceiver.hex -pf -vf
+.PHONY: flash
+flash: main.hex
+	stk500 -d$(DEVICE) -c$(PORT) -e -ifmain.hex -pf -vf
 
 .PHONY: fuse
 fuse:
@@ -45,20 +35,17 @@ fuse:
 
 .PHONY: clean
 clean:
-	rm -f transmitter.hex transmitter.elf $(TRANSMITTER_OBJECTS) $(TRANSMITTER_SOURCES:.c=.d)
-	rm -f receiver.hex receiver.elf $(RECEIVER_OBJECTS) $(RECEIVER_SOURCES:.c=.d)
+	rm -f main.hex main.elf $(OBJECTS) $(SOURCES:.c=.d)
 
-transmitter.elf: $(TRANSMITTER_OBJECTS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o transmitter.elf $(TRANSMITTER_OBJECTS)
+.PHONY: size
+size: main.elf
+	avr-size --format=avr --mcu=$(DEVICE) main.elf
 
-transmitter.hex: transmitter.elf
-	avr-objcopy -j .text -j .data -O ihex transmitter.elf transmitter.hex
+main.elf: $(OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o main.elf $(OBJECTS)
 
-receiver.elf: $(RECEIVER_OBJECTS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -o receiver.elf $(RECEIVER_OBJECTS)
-
-receiver.hex: receiver.elf
-	avr-objcopy -j .text -j .data -O ihex receiver.elf receiver.hex
+main.hex: main.elf
+	avr-objcopy -j .text -j .data -O ihex main.elf main.hex
 
 %.d: %.c
 	@set -e; $(CC) -MM $(CPPFLAGS) $< -o $@.$$$$; \

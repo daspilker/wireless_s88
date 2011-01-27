@@ -12,7 +12,6 @@
 #include <util/atomic.h>
 #include <util/delay.h>
 #include "rf12.h"
-#include "common.h"
 
 #define PIN_LED PB3
 #define PORT_LED PORTB
@@ -28,6 +27,9 @@
 #define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
 #define IS_LED_ON() bit_is_set(PORT_LED, PIN_LED)
 #endif
+
+#define RECEIVER_NODE_ID 0x00
+#define POLL_COMMAND     0x01
 
 static volatile uint8_t feedback;
 static uint8_t node_id;
