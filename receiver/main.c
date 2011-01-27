@@ -20,6 +20,9 @@
 #define PORT_LED PORTD
 #define DDR_LED  DDRD
 
+#define PIN_S88LOAD     PB1
+#define PIN_S88DATA_OUT PB4
+
 #define LED_ON()  PORT_LED |=  _BV(PIN_LED)
 #define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
 
@@ -30,20 +33,12 @@ ISR(SPI_STC_vect) {
 }
 
 ISR(PCINT0_vect) {
-  if (bit_is_set(PINB, PB1)) {
+  if (bit_is_set(PINB, PIN_S88LOAD)) {
     SPCR &= ~_BV(SPE);
     SPCR |= _BV(SPE);
     SPDR = feedback;
-    /*    
-    if (bit_is_set(PORTC, PC0)) {
-      PORTC &= ~_BV(PC0);
-    } else {
-      PORTC |= _BV(PC0);
-    }
-    */
   }
 }
-
 
 static void init() {
   DDR_LED |= _BV(PIN_LED);
@@ -58,7 +53,7 @@ static void init() {
   PCMSK0 = _BV(PCINT1);
   PCICR |= _BV(PCIE0);
 
-  DDRB |= _BV(PB4);
+  DDRB |= _BV(PIN_S88DATA_OUT);
   SPCR = _BV(SPIE) | _BV(SPE) | _BV(CPHA);
 
   rf12_init(NODE_ID);

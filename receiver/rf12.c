@@ -114,15 +114,6 @@ void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
   rf12_trans(0xB8AA);
 }
 
-void rf12_rxdata(uint8_t *data, uint8_t number) {
-  rf12_trans(0x82D9);			// RX on
-  for (uint8_t i = 0; i < number; i++) {
-    rf12_ready();
-    *data++ = rf12_trans(0xB000);
-  }
-  rf12_trans(0x8201);			// RX off
-}
-
 bool rf12_rxdata_timeout(uint8_t *data, uint8_t number) {
   rf12_trans(0x82D9);			// RX on
   for (uint8_t i = 0; i < number; i++) {
