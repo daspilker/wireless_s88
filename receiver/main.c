@@ -23,25 +23,27 @@
 #define LED_ON()  PORT_LED |=  _BV(PIN_LED)
 #define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
 
-/*
+volatile uint8_t feedback = 0;
+
 ISR(SPI_STC_vect) {
-  SPDR = 0x55;
+  SPDR = 0x00;
 }
 
 ISR(PCINT0_vect) {
   if (bit_is_set(PINB, PB1)) {
     SPCR &= ~_BV(SPE);
     SPCR |= _BV(SPE);
-    SPDR = 0xAA;
-    
+    SPDR = feedback;
+    /*    
     if (bit_is_set(PORTC, PC0)) {
       PORTC &= ~_BV(PC0);
     } else {
       PORTC |= _BV(PC0);
     }
+    */
   }
 }
-*/
+
 
 static void init() {
   DDR_LED |= _BV(PIN_LED);
@@ -53,11 +55,11 @@ static void init() {
     _delay_ms(50);
   }
 
-  //  PCMSK0 = _BV(PCINT1);
-  //  PCICR |= _BV(PCIE0);
+  PCMSK0 = _BV(PCINT1);
+  PCICR |= _BV(PCIE0);
 
-  //  DDRB |= _BV(PB4);
-  //  SPCR = _BV(SPIE) | _BV(SPE) | _BV(CPHA);
+  DDRB |= _BV(PB4);
+  SPCR = _BV(SPIE) | _BV(SPE) | _BV(CPHA);
 
   rf12_init(NODE_ID);
 
@@ -75,6 +77,7 @@ int main() {
     rf12_txdata(current_node_id, buffer, 2);
     if (rf12_rxdata_timeout(buffer, 3)) {
       if (buffer[0] == current_node_id && buffer[2] == (buffer[0] ^ buffer[1])) {
+	feedback = buffer[1];
 	if (bit_is_set(PORT_LED, PIN_LED)) {
 	  LED_OFF();
 	} else {

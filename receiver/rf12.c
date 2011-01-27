@@ -69,14 +69,13 @@ void rf12_init(uint8_t node_id) {
   UBRR0 = 1;
 
   rf12_trans(0x0000);
-  //  rf12_trans(0x8205);
-  //  rf12_trans(0xB800);
+  rf12_trans(0x8201);
+  rf12_trans(0xB800);
   while (bit_is_clear(PIND, PIN_IRQ)) {
     rf12_trans(0x0000);
   }
 
   rf12_trans(0x80E7);            // enable TX register, enable RX FIFO buffer, 868MHz, 12.0pF
-  rf12_trans(0x8201);
   rf12_trans(0xA460);            // 868.000MHz
   rf12_trans(0xC606);            // 49.26kbps
   rf12_trans(0x94A2);            // VDI,FAST,134kHz,0dBm,-91dBm
@@ -110,7 +109,7 @@ void rf12_txdata(uint8_t node_id, uint8_t *data, uint8_t number) {
   rf12_ready();
   rf12_trans(0xB8AA);
   rf12_ready();
-  rf12_trans(0x8209);			// TX off
+  rf12_trans(0x8201);			// TX off
   rf12_ready();
   rf12_trans(0xB8AA);
 }
@@ -121,18 +120,18 @@ void rf12_rxdata(uint8_t *data, uint8_t number) {
     rf12_ready();
     *data++ = rf12_trans(0xB000);
   }
-  rf12_trans(0x8209);			// RX off
+  rf12_trans(0x8201);			// RX off
 }
 
 bool rf12_rxdata_timeout(uint8_t *data, uint8_t number) {
   rf12_trans(0x82D9);			// RX on
   for (uint8_t i = 0; i < number; i++) {
     if (!rf12_ready_timeout()) {
-      rf12_trans(0x8209);			// RX off
+      rf12_trans(0x8201);			// RX off
       return false;
     }
     *data++ = rf12_trans(0xB000);
   }
-  rf12_trans(0x8209);			// RX off
+  rf12_trans(0x8201);			// RX off
   return true;
 }
