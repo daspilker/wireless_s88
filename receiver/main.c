@@ -81,7 +81,7 @@ int main() {
   transmitter_count = init();
 
   for (;;) {
-    for (uint8_t current_transmitter = 0; current_transmitter < transmitter_count; current_transmitter += 1) {
+    for (uint8_t current_transmitter = 1; current_transmitter <= transmitter_count; current_transmitter += 1) {
       buffer[0] = POLL_COMMAND;
       buffer[1] = ~POLL_COMMAND;
       rf12_txdata(current_transmitter, buffer, 2);
