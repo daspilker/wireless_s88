@@ -52,9 +52,9 @@ ISR(PCINT0_vect) {
 }
 
 static void set_feedback(uint8_t transmitter, uint8_t value) {
-  bool high_nibble = transmitter & 0x01;
+  bool low_nibble = transmitter & 0x01;
   uint8_t feedback_position = transmitter >> 1;
-  feedback[feedback_position] = (feedback[feedback_position] & (high_nibble ? 0x0F : 0xF0)) + (value << (high_nibble ? 4 : 0));
+  feedback[feedback_position] = (feedback[feedback_position] & (low_nibble ? 0xF0 : 0x0F)) + (value << (low_nibble ? 0 : 4));
 }
 
 static uint8_t init() {
