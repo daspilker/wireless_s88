@@ -29,18 +29,32 @@
 #define LED_ON()  PORT_LED |=  _BV(PIN_LED)
 #define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
 
-volatile uint8_t feedback = 0;
+#define FEEDBACK_BUFFER_SIZE 128
+
+volatile uint8_t feedback[FEEDBACK_BUFFER_SIZE];
+volatile uint8_t feedback_pointer = 0;
 
 ISR(SPI_STC_vect) {
-  SPDR = 0x00;
+  SPDR = feedback[feedback_pointer];
+  feedback_pointer += 1;
+  if (feedback_pointer == FEEDBACK_BUFFER_SIZE) {
+    feedback_pointer = 0;
+  }
 }
 
 ISR(PCINT0_vect) {
   if (bit_is_set(PINB, PIN_S88LOAD)) {
     SPCR &= ~_BV(SPE);
     SPCR |= _BV(SPE);
-    SPDR = feedback;
+    SPDR = feedback[0];
+    feedback_pointer = 1;
   }
+}
+
+static void set_feedback(uint8_t transmitter, uint8_t value) {
+  bool high_nibble = transmitter & 0x01;
+  uint8_t feedback_position = transmitter >> 1;
+  feedback[feedback_position] = (feedback[feedback_position] & (high_nibble ? 0x0F : 0xF0)) + (value << (high_nibble ? 4 : 0));
 }
 
 static uint8_t init() {
@@ -81,13 +95,13 @@ int main() {
   transmitter_count = init();
 
   for (;;) {
-    for (uint8_t current_transmitter = 1; current_transmitter <= transmitter_count; current_transmitter += 1) {
+    for (uint8_t current_transmitter = 0; current_transmitter < transmitter_count; current_transmitter += 1) {
       buffer[0] = POLL_COMMAND;
       buffer[1] = ~POLL_COMMAND;
-      rf12_txdata(current_transmitter, buffer, 2);
+      rf12_txdata(current_transmitter + 1, buffer, 2);
       if (rf12_rxdata_timeout(buffer, 3)) {
-	if (buffer[0] == current_transmitter && buffer[2] == (buffer[0] ^ buffer[1])) {
-	  feedback = buffer[1];
+	if (buffer[0] == current_transmitter + 1 && buffer[2] == (buffer[0] ^ buffer[1])) {
+	  set_feedback(current_transmitter, buffer[1] & 0x0F);
 	  if (bit_is_set(PORT_LED, PIN_LED)) {
 	    LED_OFF();
 	  } else {
