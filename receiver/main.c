@@ -43,19 +43,13 @@ volatile uint8_t s88_bytes = 0;
 ISR(SPI_STC_vect) {
   if (feedback_out == s88_bytes) {
     SPDR = input[input_out];
-    input_out += 1;
+    input_out = (input_out + 1) % BUFFER_SIZE;
   } else {
     SPDR = feedback[feedback_out];
     feedback_out += 1;
   }
   input[input_in] = SPDR;
-  input_in += 1;
-  if (input_in == BUFFER_SIZE) {
-    input_in = 0;
-  }
-  if (input_out == BUFFER_SIZE) {
-    input_out = 0;
-  }
+  input_in = (input_in + 1) % BUFFER_SIZE;
 }
 
 ISR(PCINT0_vect) {
