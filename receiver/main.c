@@ -29,16 +29,32 @@
 #define LED_ON()  PORT_LED |=  _BV(PIN_LED)
 #define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
 
-#define FEEDBACK_BUFFER_SIZE 128
+#define BUFFER_SIZE 128
 
-volatile uint8_t feedback[FEEDBACK_BUFFER_SIZE];
-volatile uint8_t feedback_pointer = 0;
+volatile uint8_t feedback[BUFFER_SIZE];
+volatile uint8_t feedback_out = 0;
+volatile uint8_t input[BUFFER_SIZE];
+volatile uint8_t input_in = 0;
+volatile uint8_t input_out = 0;
+
+volatile uint8_t transmitter_count = 0;
+volatile uint8_t s88_bytes = 0;
 
 ISR(SPI_STC_vect) {
-  SPDR = feedback[feedback_pointer];
-  feedback_pointer += 1;
-  if (feedback_pointer == FEEDBACK_BUFFER_SIZE) {
-    feedback_pointer = 0;
+  if (feedback_out == s88_bytes) {
+    SPDR = input[input_out];
+    input_out += 1;
+  } else {
+    SPDR = feedback[feedback_out];
+    feedback_out += 1;
+  }
+  input[input_in] = SPDR;
+  input_in += 1;
+  if (input_in == BUFFER_SIZE) {
+    input_in = 0;
+  }
+  if (input_out == BUFFER_SIZE) {
+    input_out = 0;
   }
 }
 
@@ -47,7 +63,9 @@ ISR(PCINT0_vect) {
     SPCR &= ~_BV(SPE);
     SPCR |= _BV(SPE);
     SPDR = feedback[0];
-    feedback_pointer = 1;
+    feedback_out = 1;
+    input_in = 0;
+    input_out = 0;
   }
 }
 
@@ -57,9 +75,7 @@ static void set_feedback(uint8_t transmitter, uint8_t value) {
   feedback[feedback_position] = (feedback[feedback_position] & (low_nibble ? 0xF0 : 0x0F)) + (value << (low_nibble ? 0 : 4));
 }
 
-static uint8_t init() {
-  uint8_t transmitter_count;
-
+static void init() {
   DDR_LED |= _BV(PIN_LED);
 
   for (uint8_t i=0; i<5; i++) {
@@ -80,19 +96,17 @@ static uint8_t init() {
 
   transmitter_count = ~PINC & MODULE_COUNT_MASK_PORTC;
   transmitter_count |= (~PIND & MODULE_COUNT_MASK_PORTD) << 2;
+  s88_bytes = (((transmitter_count - 1) >> 2) + 1) << 1;
 
   rf12_init(NODE_ID);
 
   sei();
-
-  return transmitter_count;
 }
 
 int main() {
-  uint8_t transmitter_count;
   uint8_t buffer[3];
 
-  transmitter_count = init();
+  init();
 
   for (;;) {
     for (uint8_t current_transmitter = 0; current_transmitter < transmitter_count; current_transmitter += 1) {
