@@ -19,6 +19,8 @@
 #define PIN_SEL PD3
 #define PIN_SCK PD4
 
+#define RSSI_BIT 0x0100
+
 #define CHIP_SELECT_ON()  PORTD &= ~_BV(PIN_SEL)
 #define CHIP_SELECT_OFF() PORTD |= _BV(PIN_SEL)
 
@@ -125,4 +127,9 @@ bool rf12_rxdata_timeout(uint8_t *data, uint8_t number) {
   }
   rf12_trans(0x8201);			// RX off
   return true;
+}
+
+bool rf12_canSend() {
+  uint16_t status = rf12_trans(0x0000);
+  return (status & RSSI_BIT) == 0;
 }

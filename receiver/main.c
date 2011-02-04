@@ -106,6 +106,9 @@ int main() {
     for (uint8_t current_transmitter = 0; current_transmitter < transmitter_count; current_transmitter += 1) {
       buffer[0] = POLL_COMMAND;
       buffer[1] = ~POLL_COMMAND;
+      while(!rf12_canSend()) {
+	_delay_ms(1);
+      }
       rf12_txdata(current_transmitter + 1, buffer, 2);
       if (rf12_rxdata_timeout(buffer, 3)) {
 	if (buffer[0] == current_transmitter + 1 && buffer[2] == (buffer[0] ^ buffer[1])) {
