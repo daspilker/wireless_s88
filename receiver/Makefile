@@ -8,10 +8,14 @@
 # http://daniel-spilker.com/
 #
 
-DEVICE     = atmega328p
+DEVICE     = atmega48a
 CLOCK      = 8000000
 PORT       = USB
-FUSES      = D9E2
+ifeq ($(DEVICE), atmega328p)
+  FUSES    = D9E2
+else ifeq ($(DEVICE), atmega48a)
+  FUSES    = DFE2
+endif
 EXT_FUSES  = FF
 
 SOURCES    = main.c rf12.c
