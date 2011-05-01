@@ -13,7 +13,7 @@
 #include <util/delay.h>
 #include "rf12.h"
 
-#define PIN_LED PB3
+#define PIN_LED PB0
 #define PORT_LED PORTB
 #define DDR_LED DDRB
 
@@ -21,7 +21,7 @@
 #ifndef DEBUG
 #define FEEDBACK_INPUT_MASK 0x0F;
 #else
-#define FEEDBACK_INPUT_MASK 0x07;
+#define FEEDBACK_INPUT_MASK 0x0E;
 
 #define LED_ON()  PORT_LED |=  _BV(PIN_LED)
 #define LED_OFF() PORT_LED &= ~_BV(PIN_LED)
