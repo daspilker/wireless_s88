@@ -8,9 +8,9 @@
 // http://daniel-spilker.com/
 //
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <avr/io.h>
-#include "stdbool.h"
 #include "rf12.h"
 
 #define PIN_SDI PD0

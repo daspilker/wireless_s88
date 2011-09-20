@@ -8,8 +8,8 @@
 // http://daniel-spilker.com/
 //
 
+#include <stdbool.h>
 #include <stdint.h>
-#include "stdbool.h"
 
 void rf12_init(uint8_t node_id);
 
