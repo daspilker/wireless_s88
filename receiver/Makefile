@@ -8,17 +8,21 @@
 # http://daniel-spilker.com/
 #
 
-DEVICE     = attiny2313
+DEVICE     = atmega48a
 CLOCK      = 8000000
-BAUD       = 9600
 PORT       = USB
-FUSES      = DFE4
+ifeq ($(DEVICE), atmega328p)
+  FUSES    = D9E2
+else ifeq ($(DEVICE), atmega48a)
+  FUSES    = DFE2
+endif
+EXT_FUSES  = FF
 
-SOURCES    = main.c
+SOURCES    = main.c rf12.c
 OBJECTS    = $(SOURCES:.c=.o)
 
 CFLAGS     = -Wall -O3 -mmcu=$(DEVICE) -std=c99
-CPPFLAGS   = -DF_CPU=$(CLOCK) -DBAUD=$(BAUD)
+CPPFLAGS   = -DF_CPU=$(CLOCK)
 CC         = avr-gcc
 
 .PHONY: all
@@ -32,11 +36,15 @@ flash: main.hex
 
 .PHONY: fuse
 fuse:
-	stk500 -d$(DEVICE) -c$(PORT) -f$(FUSES) -F$(FUSES) -EFF -GFF
+	stk500 -d$(DEVICE) -c$(PORT) -f$(FUSES) -F$(FUSES) -E$(EXT_FUSES) -G$(EXT_FUSES)
 
 .PHONY: clean
 clean:
 	rm -f main.hex main.elf $(OBJECTS) $(SOURCES:.c=.d)
+
+.PHONY: size
+size: main.elf
+	avr-size --format=avr --mcu=$(DEVICE) main.elf
 
 main.elf: $(OBJECTS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o main.elf $(OBJECTS)
