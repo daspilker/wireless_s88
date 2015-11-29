@@ -11,7 +11,10 @@
 DEVICE     = attiny2313
 CLOCK      = 4000000
 PORT       = USB
-FUSES      = DFE2
+FUSE_L     = 0xE2
+FUSE_H     = 0xDF
+PROGRAMMER = avrisp2
+PART       = t2313
 
 SOURCES    = main.c rf12.c
 OBJECTS    = $(SOURCES:.c=.o)
@@ -27,11 +30,11 @@ all: main.hex
 
 .PHONY: flash
 flash: main.hex
-	stk500 -d$(DEVICE) -c$(PORT) -e -ifmain.hex -pf -vf
+	avrdude -c $(PROGRAMMER) -p $(PART) -U flash:w:main.hex -v
 
 .PHONY: fuse
 fuse:
-	stk500 -d$(DEVICE) -c$(PORT) -f$(FUSES) -F$(FUSES) -EFF -GFF
+	avrdude -c $(PROGRAMMER) -p $(PART) -U lfuse:w:$(FUSE_L):m -U hfuse:w:$(FUSE_H):m
 
 .PHONY: clean
 clean:
