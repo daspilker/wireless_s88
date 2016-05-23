@@ -12,7 +12,7 @@ DEVICE     = attiny2313
 CLOCK      = 4000000
 PORT       = USB
 FUSE_L     = 0xE2
-FUSE_H     = 0xDF
+FUSE_H     = 0xDB
 PROGRAMMER = avrisp2
 PART       = t2313
 

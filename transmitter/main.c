@@ -9,6 +9,7 @@
 //
 
 #include <avr/io.h>
+#include <avr/wdt.h>
 #include <util/atomic.h>
 #include <util/delay.h>
 #include "rf12.h"
@@ -67,6 +68,8 @@ static void init() {
 
   rf12_init(node_id);
 
+  wdt_enable(WDTO_500MS);
+
   sei();
 }
 
@@ -75,6 +78,7 @@ int main(void) {
 
   uint8_t buffer[3];
   for (;;) {
+    wdt_reset();
     rf12_rxdata(buffer, 2);
     uint8_t check = ~buffer[0];
     if (buffer[0] == POLL_COMMAND && buffer[1] == check) {
